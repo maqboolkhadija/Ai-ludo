@@ -3,17 +3,17 @@ from PIL import Image
 import random
 
 st.set_page_config(layout="wide")
-st.title("🎲 Advanced Ludo Game")
+st.title("🎲 Full Advanced Ludo Game")
 
 # --- Load Images ---
 try:
-    board_img = Image.open("board.png")
-    tok_red = Image.open("token_red.png")
-    tok_green = Image.open("token_green.png")
-    tok_yellow = Image.open("token_yellow.png")
-    tok_blue = Image.open("token_blue.png")
-except Exception as e:
-    st.error("⚠️ Images not found! Upload board.png and token images.")
+    board_img = Image.open("board.png").convert("RGBA")
+    tok_red = Image.open("token_red.png").convert("RGBA")
+    tok_green = Image.open("token_green.png").convert("RGBA")
+    tok_yellow = Image.open("token_yellow.png").convert("RGBA")
+    tok_blue = Image.open("token_blue.png").convert("RGBA")
+except:
+    st.error("⚠️ Please make sure all images (board + 4 tokens) are in the project folder.")
     st.stop()
 
 token_images = {
@@ -34,7 +34,7 @@ if "pos" not in st.session_state:
 if "finished" not in st.session_state:
     st.session_state.finished = []
 
-# Simplified track coordinates
+# --- Simplified track coordinates (15x15 grid) ---
 TRACK = [
     (6,0),(6,1),(6,2),(6,3),(6,4),(6,5),(6,6),(5,6),(4,6),(3,6),(2,6),(1,6),(0,6),
     (0,7),(0,8),(1,8),(2,8),(3,8),(4,8),(5,8),(6,8),(6,9),(6,10),(6,11),(6,12),(6,13),(6,14),
@@ -43,54 +43,49 @@ TRACK = [
     (7,0)
 ]
 
-# --- Display Board ---
-st.image(board_img, caption="Ludo Board", use_column_width=True)
+# --- Display Board with Tokens ---
+canvas = board_img.copy()
+for player in players:
+    for idx, step in enumerate(st.session_state.pos[player]):
+        if step >= 0 and step < len(TRACK):
+            x, y = TRACK[step]
+            px = x*40 + 5  # adjust token offset
+            py = y*40 + 5
+            token_img = token_images[player].resize((30,30))
+            canvas.paste(token_img, (px, py), token_img)
 
+st.image(canvas, caption="Board with Tokens", use_column_width=True)
+
+# --- Dice Roll & Move ---
 col1, col2 = st.columns([1,2])
+current_player = players[st.session_state.turn % 4]
 
 with col1:
-    current = players[st.session_state.turn % 4]
-    if st.button(f"🎲 {current.upper()} Roll Dice"):
-        d = random.randint(1,6)
-        st.session_state.dice = d
-        st.write(f"🎲 {current.upper()} rolled {d}")
+    if st.button(f"🎲 {current_player.upper()} Roll Dice"):
+        st.session_state.dice = random.randint(1,6)
+        st.write(f"{current_player.upper()} rolled {st.session_state.dice}")
 
-    d = st.session_state.dice
-    if d > 0:
-        goti = st.radio("Choose Goti to Move", [1,2,3,4])
+    dice = st.session_state.dice
+    if dice > 0:
+        goti_choice = st.radio(f"{current_player.upper()} choose goti to move", [1,2,3,4])
         if st.button("➡ Move"):
-            idx = goti - 1
-            pos = st.session_state.pos[current][idx]
+            idx = goti_choice - 1
+            pos = st.session_state.pos[current_player][idx]
             if pos == -1:
-                if d == 6:
+                if dice == 6:
                     pos = 0
                 else:
                     st.warning("Need 6 to bring goti out!")
             else:
-                pos += d
+                pos += dice
                 if pos >= len(TRACK):
-                    pos = len(TRACK) - 1
-                    if current not in st.session_state.finished:
-                        st.session_state.finished.append(current)
-            st.session_state.pos[current][idx] = pos
+                    pos = len(TRACK)-1
+                    if current_player not in st.session_state.finished:
+                        st.session_state.finished.append(current_player)
+            st.session_state.pos[current_player][idx] = pos
             st.session_state.dice = 0
-            if d != 6:
+            if dice != 6:
                 st.session_state.turn += 1
-
-# --- Draw Token Overlay ---
-canvas = board_img.copy()
-draw = Image.new("RGBA", canvas.size)
-for p in players:
-    for i,step in enumerate(st.session_state.pos[p]):
-        if step >= 0:
-            x,y = TRACK[step]
-            px = x * 40 + 10
-            py = y * 40 + 10
-            tok_img = token_images[p].resize((30,30))
-            draw.paste(tok_img, (px,py), tok_img)
-
-canvas.paste(draw, (0,0), draw)
-st.image(canvas, caption="Board with Tokens")
 
 with col2:
     st.write("🔢 Positions:", st.session_state.pos)
