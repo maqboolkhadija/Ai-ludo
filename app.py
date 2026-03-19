@@ -1,4 +1,4 @@
- import streamlit as st
+import streamlit as st
 from PIL import Image
 from streamlit_drawable_canvas import st_canvas
 import io
